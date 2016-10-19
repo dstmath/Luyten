@@ -3,6 +3,7 @@ package us.deathmarine.luyten;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.awt.event.KeyEvent;
+import java.awt.Toolkit;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
@@ -18,6 +19,8 @@ import javax.swing.JOptionPane;
 import javax.swing.JRadioButtonMenuItem;
 import javax.swing.KeyStroke;
 import javax.swing.text.DefaultEditorKit;
+
+import com.strobel.Procyon;
 import com.strobel.decompiler.DecompilerSettings;
 import com.strobel.decompiler.languages.Language;
 import com.strobel.decompiler.languages.Languages;
@@ -38,7 +41,9 @@ public class MainMenuBar extends JMenuBar {
 	private JCheckBox excludeNestedTypes;
 	private JCheckBox retainRedundantCasts;
 	private JCheckBox unicodeReplacement;
+	private JCheckBox debugLineNumbers;
 	private JCheckBox showDebugInfo;
+	private JCheckBox bytecodeLineNumbers;
 	private JRadioButtonMenuItem java;
 	private JRadioButtonMenuItem bytecode;
 	private JRadioButtonMenuItem bytecodeAST;
@@ -121,7 +126,7 @@ public class MainMenuBar extends JMenuBar {
 	private void buildFileMenu(final JMenu fileMenu) {
 		fileMenu.removeAll();
 		JMenuItem menuItem = new JMenuItem("Open File...");
-		menuItem.setAccelerator(KeyStroke.getKeyStroke(KeyEvent.VK_O, ActionEvent.CTRL_MASK));
+		menuItem.setAccelerator(KeyStroke.getKeyStroke(KeyEvent.VK_O, Toolkit.getDefaultToolkit().getMenuShortcutKeyMask()));
 		menuItem.addActionListener(new ActionListener() {
 			@Override
 			public void actionPerformed(ActionEvent e) {
@@ -132,7 +137,7 @@ public class MainMenuBar extends JMenuBar {
 		fileMenu.addSeparator();
 
 		menuItem = new JMenuItem("Close");
-		menuItem.setAccelerator(KeyStroke.getKeyStroke(KeyEvent.VK_W, ActionEvent.CTRL_MASK));
+		menuItem.setAccelerator(KeyStroke.getKeyStroke(KeyEvent.VK_W, Toolkit.getDefaultToolkit().getMenuShortcutKeyMask()));
 		menuItem.addActionListener(new ActionListener() {
 			@Override
 			public void actionPerformed(ActionEvent e) {
@@ -143,7 +148,7 @@ public class MainMenuBar extends JMenuBar {
 		fileMenu.addSeparator();
 
 		menuItem = new JMenuItem("Save As...");
-		menuItem.setAccelerator(KeyStroke.getKeyStroke(KeyEvent.VK_E, ActionEvent.CTRL_MASK));
+		menuItem.setAccelerator(KeyStroke.getKeyStroke(KeyEvent.VK_E, Toolkit.getDefaultToolkit().getMenuShortcutKeyMask()));
 		menuItem.addActionListener(new ActionListener() {
 			@Override
 			public void actionPerformed(ActionEvent e) {
@@ -153,7 +158,7 @@ public class MainMenuBar extends JMenuBar {
 		fileMenu.add(menuItem);
 
 		menuItem = new JMenuItem("Save All...");
-		menuItem.setAccelerator(KeyStroke.getKeyStroke(KeyEvent.VK_E, ActionEvent.CTRL_MASK));
+		menuItem.setAccelerator(KeyStroke.getKeyStroke(KeyEvent.VK_E, Toolkit.getDefaultToolkit().getMenuShortcutKeyMask()));
 		menuItem.addActionListener(new ActionListener() {
 			@Override
 			public void actionPerformed(ActionEvent e) {
@@ -168,38 +173,41 @@ public class MainMenuBar extends JMenuBar {
 		fileMenu.add(menuItem);
 		fileMenu.addSeparator();
 
-		menuItem = new JMenuItem("Exit");
-		menuItem.setAccelerator(KeyStroke.getKeyStroke(KeyEvent.VK_F4, ActionEvent.ALT_MASK));
-		menuItem.addActionListener(new ActionListener() {
-			@Override
-			public void actionPerformed(ActionEvent e) {
-				mainWindow.onExitMenu();
-			}
-		});
-		fileMenu.add(menuItem);
+        // Only add the exit command for non-OS X.  OS X handles its close automatically
+        if (!("true".equals(System.getProperty("us.deathmarine.luyten.Luyten.running_in_osx")))) {
+    		menuItem = new JMenuItem("Exit");
+    		menuItem.setAccelerator(KeyStroke.getKeyStroke(KeyEvent.VK_F4, ActionEvent.ALT_MASK));
+    		menuItem.addActionListener(new ActionListener() {
+    			@Override
+    			public void actionPerformed(ActionEvent e) {
+    				mainWindow.onExitMenu();
+    			}
+    		});
+    		fileMenu.add(menuItem);
+        }
 	}
 
 	private void buildEditMenu(JMenu editMenu) {
 		editMenu.removeAll();
 		JMenuItem menuItem = new JMenuItem("Cut");
-		menuItem.setAccelerator(KeyStroke.getKeyStroke(KeyEvent.VK_X, ActionEvent.CTRL_MASK));
+		menuItem.setAccelerator(KeyStroke.getKeyStroke(KeyEvent.VK_X, Toolkit.getDefaultToolkit().getMenuShortcutKeyMask()));
 		menuItem.setEnabled(false);
 		editMenu.add(menuItem);
 
 		menuItem = new JMenuItem("Copy");
 		menuItem.addActionListener(new DefaultEditorKit.CopyAction());
-		menuItem.setAccelerator(KeyStroke.getKeyStroke(KeyEvent.VK_C, ActionEvent.CTRL_MASK));
+		menuItem.setAccelerator(KeyStroke.getKeyStroke(KeyEvent.VK_C, Toolkit.getDefaultToolkit().getMenuShortcutKeyMask()));
 		editMenu.add(menuItem);
 
 		menuItem = new JMenuItem("Paste");
-		menuItem.setAccelerator(KeyStroke.getKeyStroke(KeyEvent.VK_V, ActionEvent.CTRL_MASK));
+		menuItem.setAccelerator(KeyStroke.getKeyStroke(KeyEvent.VK_V, Toolkit.getDefaultToolkit().getMenuShortcutKeyMask()));
 		menuItem.setEnabled(false);
 		editMenu.add(menuItem);
 
 		editMenu.addSeparator();
 
 		menuItem = new JMenuItem("Select All");
-		menuItem.setAccelerator(KeyStroke.getKeyStroke(KeyEvent.VK_A, ActionEvent.CTRL_MASK));
+		menuItem.setAccelerator(KeyStroke.getKeyStroke(KeyEvent.VK_A, Toolkit.getDefaultToolkit().getMenuShortcutKeyMask()));
 		menuItem.addActionListener(new ActionListener() {
 			@Override
 			public void actionPerformed(ActionEvent e) {
@@ -210,7 +218,7 @@ public class MainMenuBar extends JMenuBar {
 		editMenu.addSeparator();
 
 		menuItem = new JMenuItem("Find...");
-		menuItem.setAccelerator(KeyStroke.getKeyStroke(KeyEvent.VK_F, ActionEvent.CTRL_MASK));
+		menuItem.setAccelerator(KeyStroke.getKeyStroke(KeyEvent.VK_F, Toolkit.getDefaultToolkit().getMenuShortcutKeyMask()));
 		menuItem.addActionListener(new ActionListener() {
 			@Override
 			public void actionPerformed(ActionEvent e) {
@@ -220,7 +228,7 @@ public class MainMenuBar extends JMenuBar {
 		editMenu.add(menuItem);
 
         menuItem = new JMenuItem("Find All");
-        menuItem.setAccelerator(KeyStroke.getKeyStroke(KeyEvent.VK_G, ActionEvent.CTRL_MASK));
+        menuItem.setAccelerator(KeyStroke.getKeyStroke(KeyEvent.VK_G, Toolkit.getDefaultToolkit().getMenuShortcutKeyMask()));
         menuItem.addActionListener(new ActionListener() {
             @Override
             public void actionPerformed(ActionEvent e) {
@@ -238,16 +246,29 @@ public class MainMenuBar extends JMenuBar {
 		a.setSelected("default.xml".equals(luytenPrefs.getThemeXml()));
 		themesGroup.add(a);
 		themesMenu.add(a);
+		
+		a = new JRadioButtonMenuItem(new ThemeAction("Default-Alt", "default-alt.xml"));
+		a.setSelected("default-alt.xml".equals(luytenPrefs.getThemeXml()));
+		themesGroup.add(a);
+		themesMenu.add(a);
+		
 		a = new JRadioButtonMenuItem(new ThemeAction("Dark", "dark.xml"));
 		a.setSelected("dark.xml".equals(luytenPrefs.getThemeXml()));
 		themesGroup.add(a);
 		themesMenu.add(a);
+		
 		a = new JRadioButtonMenuItem(new ThemeAction("Eclipse", "eclipse.xml"));
 		a.setSelected("eclipse.xml".equals(luytenPrefs.getThemeXml()));
 		themesGroup.add(a);
 		themesMenu.add(a);
+		
 		a = new JRadioButtonMenuItem(new ThemeAction("Visual Studio", "vs.xml"));
 		a.setSelected("vs.xml".equals(luytenPrefs.getThemeXml()));
+		themesGroup.add(a);
+		themesMenu.add(a);
+		
+		a = new JRadioButtonMenuItem(new ThemeAction("IntelliJ", "idea.xml"));
+		a.setSelected("idea.xml".equals(luytenPrefs.getThemeXml()));
 		themesGroup.add(a);
 		themesMenu.add(a);
 	}
@@ -367,6 +388,13 @@ public class MainMenuBar extends JMenuBar {
 		unicodeReplacement.setFocusable(false);
 		unicodeReplacement.addActionListener(settingsChanged);
 		settingsMenu.add(unicodeReplacement);
+		
+		debugLineNumbers = new JCheckBox("    Show Debug Line Numbers");
+		debugLineNumbers.setSelected(settings.getShowDebugLineNumbers());
+		debugLineNumbers.setContentAreaFilled(false);
+		debugLineNumbers.setFocusable(false);
+		debugLineNumbers.addActionListener(settingsChanged);
+		settingsMenu.add(debugLineNumbers);
 
 		JMenu debugSettingsMenu = new JMenu("Debug Settings");
 		showDebugInfo = new JCheckBox("    Include Error Diagnostics");
@@ -413,6 +441,13 @@ public class MainMenuBar extends JMenuBar {
 			button.addActionListener(settingsChanged);
 		}
 		settingsMenu.add(debugLanguagesMenu);
+		
+		bytecodeLineNumbers = new JCheckBox("    Show Line Numbers In Bytecode");
+		bytecodeLineNumbers.setSelected(settings.getIncludeLineNumbersInBytecode());
+		bytecodeLineNumbers.setContentAreaFilled(false);
+		bytecodeLineNumbers.setFocusable(false);
+		bytecodeLineNumbers.addActionListener(settingsChanged);
+		settingsMenu.add(bytecodeLineNumbers);
 	}
 
 	private void buildHelpMenu(JMenu helpMenu) {
@@ -425,15 +460,25 @@ public class MainMenuBar extends JMenuBar {
 			}
 		});
 		helpMenu.add(menuItem);
+		JMenu menuDebug = new JMenu("Debug");
+		menuItem = new JMenuItem("List JVM Classes");
+		menuItem.addActionListener(new ActionListener() {
+			@Override
+			public void actionPerformed(ActionEvent e) {
+				mainWindow.onListLoadedClasses();
+			}
+		});
+		menuDebug.add(menuItem);
+		helpMenu.add(menuDebug);
 		menuItem = new JMenuItem("About");
 		menuItem.addActionListener(new ActionListener() {
 			@Override
 			public void actionPerformed(ActionEvent event) {
 				JOptionPane.showMessageDialog(null,
-						"Luyten Gui \n" +
-								"by Deathmarine, Zerdei\n\n" +
-								"Powered By\nProcyon\n" +
-								"(c) 2013 Mike Strobel\n\n" +
+								"Luyten " + Luyten.getVersion() +
+								"\nby Deathmarine, Zerdei\n\n" +
+								"Powered By\nProcyon "+ Procyon.version()+
+								"\n(c) 2015 Mike Strobel\n\n" +
 								"RSyntaxTextArea\n" +
 								"(c) 2012 Robert Futrell\n" +
 								"All rights reserved.");
@@ -453,6 +498,7 @@ public class MainMenuBar extends JMenuBar {
 			settings.setRetainRedundantCasts(retainRedundantCasts.isSelected());
 			settings.setIncludeErrorDiagnostics(showDebugInfo.isSelected());
 			settings.setUnicodeOutputEnabled(unicodeReplacement.isSelected());
+			settings.setShowDebugLineNumbers(debugLineNumbers.isSelected());
 			//
 			// Note: You shouldn't ever need to set this.  It's only for languages that support catch
 			//       blocks without an exception variable.  Java doesn't allow this.  I think Scala does.
@@ -475,6 +521,7 @@ public class MainMenuBar extends JMenuBar {
 			} else if (bytecodeAST.isSelected()) {
 				settings.setLanguage(Languages.bytecodeAst());
 			}
+			settings.setIncludeLineNumbersInBytecode(bytecodeLineNumbers.isSelected());
 		}
 	}
 

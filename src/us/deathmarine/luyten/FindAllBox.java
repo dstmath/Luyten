@@ -10,15 +10,19 @@ import com.strobel.decompiler.PlainTextOutput;
 import us.deathmarine.luyten.ConfigSaver;
 import us.deathmarine.luyten.MainWindow;
 import us.deathmarine.luyten.Model;
+import us.deathmarine.luyten.Model.State;
 
 import java.awt.*;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.awt.event.KeyEvent;
+import java.awt.event.MouseAdapter;
+import java.awt.event.MouseEvent;
 import java.awt.event.WindowAdapter;
 import java.awt.event.WindowEvent;
 import java.io.File;
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.StringWriter;
 import java.util.Collections;
 import java.util.Enumeration;
@@ -27,29 +31,60 @@ import java.util.jar.JarFile;
 
 import javax.swing.*;
 import javax.swing.GroupLayout.Alignment;
+import javax.swing.tree.DefaultMutableTreeNode;
+import javax.swing.tree.TreePath;
 
 public class FindAllBox extends JDialog {
 	private static final long serialVersionUID = -4125409760166690462L;
-	private boolean cancel;
+	
 	private boolean searching;
+	
 	private JButton findButton;
 	private JTextField textField;
-	JProgressBar progressBar;
-	private DefaultListModel<String> classesList = new DefaultListModel<String>();
+	private JProgressBar progressBar;
 	private JLabel statusLabel = new JLabel("");
 
-	public FindAllBox() {
+	private DefaultListModel<String> classesList = new DefaultListModel<String>();
+	
+	private Thread tmp_thread;
+	
+	public FindAllBox(final MainWindow mainWindow) {
+		this.setDefaultCloseOperation(HIDE_ON_CLOSE);
+		this.setHideOnEscapeButton();
+		
 		progressBar = new JProgressBar(0, 100);
+		
 		JLabel label = new JLabel("Find What:");
 		textField = new JTextField();
 		findButton = new JButton("Find");
 		findButton.addActionListener(new FindButton());
+		
 		this.getRootPane().setDefaultButton(findButton);
 
 		JList<String> list = new JList<String>(classesList);
 		list.setSelectionMode(ListSelectionModel.SINGLE_INTERVAL_SELECTION);
 		list.setLayoutOrientation(JList.VERTICAL_WRAP);
 		list.setVisibleRowCount(-1);
+		list.addMouseListener(new MouseAdapter() {
+		    public void mouseClicked(MouseEvent evt) {
+		        @SuppressWarnings("unchecked")
+				JList<String> list = (JList<String>) evt.getSource();
+		        if (evt.getClickCount() == 2) {
+		            int index = list.locationToIndex(evt.getPoint());
+		            String entryName = (String) list.getModel().getElementAt(index);
+		            String[] array = entryName.split("/");
+					String internalName = StringUtilities.removeRight(entryName, ".class");
+					TypeReference type = Model.metadataSystem.lookupType(internalName);
+					try {
+						mainWindow.getModel().extractClassToTextPane(type, array[array.length-1], entryName, null);
+					} catch (Exception e) {
+						e.printStackTrace();
+					}
+					
+		            
+		        }
+		    }
+		});
 		JScrollPane listScroller = new JScrollPane(list);
 
 		Dimension screenSize = Toolkit.getDefaultToolkit().getScreenSize();
@@ -64,15 +99,6 @@ public class FindAllBox extends JDialog {
 		getRootPane().setLayout(layout);
 		layout.setAutoCreateGaps(true);
 		layout.setAutoCreateContainerGaps(true);
-
-		JButton cancelButton = new JButton("Cancel");
-		cancelButton.addActionListener(new ActionListener() {
-			@Override
-			public void actionPerformed(ActionEvent e) {
-				if (isSearching())
-					setCancel(true);
-			}
-		});
 
 		layout.setHorizontalGroup(layout
 				.createSequentialGroup()
@@ -92,8 +118,7 @@ public class FindAllBox extends JDialog {
 																		progressBar))))
 				.addGroup(
 						layout.createParallelGroup(Alignment.LEADING)
-								.addComponent(findButton)
-								.addComponent(cancelButton))
+								.addComponent(findButton))
 
 		);
 
@@ -109,15 +134,11 @@ public class FindAllBox extends JDialog {
 								layout.createSequentialGroup().addGroup(
 										layout.createParallelGroup(
 												Alignment.BASELINE)
-												.addComponent(listScroller)
-												.addComponent(cancelButton))))
+												.addComponent(listScroller))))
 				.addGroup(layout.createParallelGroup(Alignment.LEADING))
 				.addComponent(statusLabel).addComponent(progressBar));
-		this.setDefaultCloseOperation(HIDE_ON_CLOSE);
-		this.setHideOnEscapeButton();
 		this.adjustWindowPositionBySavedState();
 		this.setSaveWindowPositionOnClosing();
-		this.setModalityType(Dialog.ModalityType.APPLICATION_MODAL);
 
 		this.setName("Find All");
 		this.setTitle("Find All");
@@ -128,71 +149,81 @@ public class FindAllBox extends JDialog {
 
 		@Override
 		public void actionPerformed(ActionEvent event) {
-			Thread tmp_thread = new Thread() {
+			tmp_thread = new Thread() {
 				public void run() {
-					setSearching(true);
-					classesList.clear();
-					ConfigSaver configSaver = ConfigSaver.getLoadedInstance();
-					DecompilerSettings settings = configSaver
-							.getDecompilerSettings();
-					File inFile = MainWindow.model.getOpenedFile();
-					try {
-						JarFile jfile = new JarFile(inFile);
-						Enumeration<JarEntry> entLength = jfile.entries();
-						initProgressBar(Collections.list(entLength).size());
-						Enumeration<JarEntry> ent = jfile.entries();
-						while (ent.hasMoreElements() && !isCancel()) {
-							JarEntry entry = ent.nextElement();
-							setStatus(entry.getName());
-							if (entry.getName().endsWith(".class")) {
-								synchronized (settings) {
-									String internalName = StringUtilities
-											.removeRight(entry.getName(),
-													".class");
-									TypeReference type = Model.metadataSystem
-											.lookupType(internalName);
-									TypeDefinition resolvedType = null;
-									if (type == null
-											|| ((resolvedType = type.resolve()) == null)) {
-										throw new Exception(
-												"Unable to resolve type.");
-									}
-									StringWriter stringwriter = new StringWriter();
-									DecompilationOptions decompilationOptions;
-									decompilationOptions = new DecompilationOptions();
-									decompilationOptions.setSettings(settings);
-									decompilationOptions
-											.setFullDecompilation(true);
-									PlainTextOutput plainTextOutput = 
-											new PlainTextOutput(stringwriter);
-									plainTextOutput.setUnicodeOutputEnabled(
-											decompilationOptions.getSettings()
-											.isUnicodeOutputEnabled());
-									settings.getLanguage().decompileType(
-											resolvedType,
-											plainTextOutput,
-											decompilationOptions);
-									String decompiledSource = stringwriter
-											.toString().toLowerCase();
-									if (decompiledSource.contains(textField
-											.getText().toLowerCase())) {
-										addClassName(entry.getName());
+					if(findButton.getText().equals("Stop")){
+						if (tmp_thread != null)
+							tmp_thread.interrupt();
+						setStatus("Stopped.");
+						findButton.setText("Find");
+					} else {
+						findButton.setText("Stop");
+						classesList.clear();
+						ConfigSaver configSaver = ConfigSaver.getLoadedInstance();
+						DecompilerSettings settings = configSaver
+								.getDecompilerSettings();
+						File inFile = MainWindow.model.getOpenedFile();
+						boolean filter = ConfigSaver.getLoadedInstance().getLuytenPreferences().isFilterOutInnerClassEntries();
+						try {
+							JarFile jfile = new JarFile(inFile);
+							Enumeration<JarEntry> entLength = jfile.entries();
+							initProgressBar(Collections.list(entLength).size());
+							Enumeration<JarEntry> ent = jfile.entries();
+							while (ent.hasMoreElements() && findButton.getText().equals("Stop")) {
+								JarEntry entry = ent.nextElement();
+								String name = entry.getName();
+								setStatus(name);
+								if(filter && name.contains("$"))
+									continue;
+								if (entry.getName().endsWith(".class") ) {
+									synchronized (settings) {
+										String internalName = StringUtilities
+												.removeRight(entry.getName(),
+														".class");
+										TypeReference type = Model.metadataSystem
+												.lookupType(internalName);
+										TypeDefinition resolvedType = null;
+										if (type == null
+												|| ((resolvedType = type.resolve()) == null)) {
+											throw new Exception(
+													"Unable to resolve type.");
+										}
+										StringWriter stringwriter = new StringWriter();
+										DecompilationOptions decompilationOptions;
+										decompilationOptions = new DecompilationOptions();
+										decompilationOptions.setSettings(settings);
+										decompilationOptions
+												.setFullDecompilation(true);
+										PlainTextOutput plainTextOutput = 
+												new PlainTextOutput(stringwriter);
+										plainTextOutput.setUnicodeOutputEnabled(
+												decompilationOptions.getSettings()
+												.isUnicodeOutputEnabled());
+										settings.getLanguage().decompileType(
+												resolvedType,
+												plainTextOutput,
+												decompilationOptions);
+										String decompiledSource = stringwriter
+												.toString().toLowerCase();
+										if (decompiledSource.contains(textField
+												.getText().toLowerCase())) {
+											addClassName(entry.getName());
+										}
 									}
 								}
 							}
+							setSearching(false);
+							if (findButton.getText().equals("Stop")){
+								setStatus("Done.");
+								findButton.setText("Find");
+							}
+							jfile.close();
+						} catch (IOException e1) {
+							e1.printStackTrace();
+						} catch (Exception e1) {
+							e1.printStackTrace();
 						}
-						setSearching(false);
-						if (isCancel()) {
-							setCancel(false);
-							setStatus("Cancelled.");
-						} else {
-							setStatus("Done.");
-						}
-						jfile.close();
-					} catch (IOException e1) {
-						e1.printStackTrace();
-					} catch (Exception e1) {
-						e1.printStackTrace();
+						
 					}
 				}
 			};
@@ -236,8 +267,6 @@ public class FindAllBox extends JDialog {
 				WindowPosition windowPosition = ConfigSaver.getLoadedInstance()
 						.getFindWindowPosition();
 				windowPosition.readPositionFromDialog(FindAllBox.this);
-				if (isSearching())
-					setCancel(true);
 			}
 		});
 	}
@@ -271,15 +300,7 @@ public class FindAllBox extends JDialog {
 		progressBar.setValue(0);
 		progressBar.setStringPainted(true);
 	}
-
-	public boolean isCancel() {
-		return cancel;
-	}
-
-	public void setCancel(boolean cancel) {
-		this.cancel = cancel;
-	}
-
+	
 	public boolean isSearching() {
 		return searching;
 	}
