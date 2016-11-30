@@ -24,7 +24,6 @@ import java.util.zip.ZipOutputStream;
 
 import javax.swing.JLabel;
 import javax.swing.JMenuItem;
-import javax.swing.JOptionPane;
 import javax.swing.JPopupMenu;
 import javax.swing.JProgressBar;
 import javax.swing.SwingUtilities;
@@ -88,8 +87,7 @@ public class FileSaver {
 					label.setText("Completed: " + getTime(time));
 				} catch (Exception e1) {
 					label.setText("Cannot save file: " + file.getName());
-					e1.printStackTrace();
-					JOptionPane.showMessageDialog(null, e1.toString(), "Error!", JOptionPane.ERROR_MESSAGE);
+					Luyten.showExceptionDialog("Unable to save file!\n", e1);
 				} finally {
 					setExtracting(false);
 					bar.setVisible(false);
@@ -107,6 +105,7 @@ public class FileSaver {
 					bar.setVisible(true);
 					setExtracting(true);
 					label.setText("Extracting: " + outFile.getName());
+					System.out.println("[SaveAll]: " + inFile.getName() + " -> " + outFile.getName());
 					String inFileName = inFile.getName().toLowerCase();
 
 					if (inFileName.endsWith(".jar") || inFileName.endsWith(".zip")) {
@@ -124,9 +123,8 @@ public class FileSaver {
 						label.setText("Completed: " + getTime(time));
 					}
 				} catch (Exception e1) {
-					e1.printStackTrace();
 					label.setText("Cannot save file: " + outFile.getName());
-					JOptionPane.showMessageDialog(null, e1.toString(), "Error!", JOptionPane.ERROR_MESSAGE);
+					Luyten.showExceptionDialog("Unable to save file!\n", e1);
 				} finally {
 					setExtracting(false);
 					bar.setVisible(false);
@@ -175,6 +173,7 @@ public class FileSaver {
 				if (entry.getName().endsWith(".class")) {
 					JarEntry etn = new JarEntry(entry.getName().replace(".class", ".java"));
 					label.setText("Extracting: " + etn.getName());
+					System.out.println("[SaveAll]: " + etn.getName() + " -> " + outFile.getName());
 
 					if (history.add(etn.getName())) {
 						out.putNextEntry(etn);
@@ -192,6 +191,9 @@ public class FileSaver {
 							plainTextOutput.setUnicodeOutputEnabled(isUnicodeEnabled);
 							settings.getLanguage().decompileType(resolvedType, plainTextOutput, decompilationOptions);
 							writer.flush();
+						} catch (Exception e) {
+							label.setText("Cannot decompile file: " + entry.getName());
+							Luyten.showExceptionDialog("Unable to Decompile file!\nSkipping file...", e);
 						} finally {
 							out.closeEntry();
 						}
@@ -250,6 +252,7 @@ public class FileSaver {
 		settings.getLanguage().decompileType(resolvedType, plainTextOutput, decompilationOptions);
 		String decompiledSource = stringwriter.toString();
 
+		System.out.println("[SaveAll]: " + inFile.getName() + " -> " + outFile.getName());
 		try (FileOutputStream fos = new FileOutputStream(outFile);
 				OutputStreamWriter writer = isUnicodeEnabled ? new OutputStreamWriter(fos, "UTF-8")
 						: new OutputStreamWriter(fos);
@@ -261,6 +264,7 @@ public class FileSaver {
 
 	private void doSaveUnknownFile(File inFile, File outFile) throws Exception {
 		try (FileInputStream in = new FileInputStream(inFile); FileOutputStream out = new FileOutputStream(outFile);) {
+			System.out.println("[SaveAll]: " + inFile.getName() + " -> " + outFile.getName());
 
 			byte data[] = new byte[1024];
 			int count;
